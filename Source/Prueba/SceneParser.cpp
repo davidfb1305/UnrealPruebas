@@ -14,14 +14,15 @@ SceneParser::SceneParser()
 {
 }
 
-bool SceneParser::parseScene(const FString& path)
+bool SceneParser::parseScene(const FString& fileName)
 {
+	FString realPath = FPaths::ProjectDir() + fileName;
 	FString JsonString;
 
 	// 1. Leer el archivo JSON desde la ruta proporcionada
-	if (!FFileHelper::LoadFileToString(JsonString, *path))
+	if (!FFileHelper::LoadFileToString(JsonString, *realPath))
 	{
-		UE_LOG(LogTemp, Error, TEXT("SceneParser: No se pudo abrir el archivo en la ruta: %s"), *path);
+		UE_LOG(LogTemp, Error, TEXT("SceneParser: No se pudo abrir el archivo en la ruta: %s"), *realPath);
 		return false;
 	}
 

@@ -1,0 +1,82 @@
+{
+  "scene_name": "CuboyCamaraenUnrealEngine",
+  "unreal_version": "5.3",
+  "timestamp": "2024-05-20T12:00:00Z",
+  "actors": [
+    {
+      "actor_id": "cubo",
+      "actor_class": "MeshActor",
+      "transform": {
+        "position": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        "rotation": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        "scale": {
+          "x": 2.0,
+          "y": 2.0,
+          "z": 2.0
+        }
+      },
+      "properties": {
+        "mesh": {
+          "asset_path": "Assets/Meshes/Cube_Blue.umesh",
+          "material": {
+            "asset_path": "Assets/Materials/Cube_Blue_Material.Mat",
+            "diffuse_color": [
+              0.5,
+              0.8,
+              1.0,
+              1.0
+            ]
+          },
+          "material_instance": true
+        },
+        "collision": {
+          "type": "Box",
+          "size": [
+            1.0,
+            1.0,
+            1.0
+          ]
+        }
+      }
+    },
+    {
+      "actor_id": "camera",
+      "actor_class": "CameraActor",
+      "transform": {
+        "position": {
+          "x": 5.0,
+          "y": 5.0,
+          "z": 5.0
+        },
+        "rotation": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        "scale": {
+          "x": 1.0,
+          "y": 1.0,
+          "z": 1.0
+        }
+      },
+      "properties": {
+        "type": "Perspective",
+        "fov": 60.0,
+        "near_plane": 0.1,
+        "far_plane": 100.0,
+        "target": {
+          "actor_id": "cubo",
+          "component_name": "StaticMeshComponent"
+        }
+      }
+    }
+  ]
+}

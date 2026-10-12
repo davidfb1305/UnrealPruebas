@@ -12,8 +12,9 @@ class PRUEBA_API UMyActorComponent : public UActorComponent
 {
 	GENERATED_BODY()
 
-public:	
-	FString filePath = "NONE";
+public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FILE")
+	FString fileName = "NONE";
 	// Sets default values for this component's properties
 	UMyActorComponent();
 

@@ -18,7 +18,7 @@ UMyActorComponent::UMyActorComponent()
 void UMyActorComponent::BeginPlay()
 {
 	Super::BeginPlay();
-	SceneParser::parseScene(filePath);
+	SceneParser::parseScene(fileName);
 	// ...
 	
 }

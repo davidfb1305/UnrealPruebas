@@ -54,6 +54,6 @@ class PRUEBA_API SceneParser
 {
 public:
 	SceneParser();
-	static bool parseScene(const FString& path);
+	static bool parseScene(const FString& fileName);
 	~SceneParser();
 };
