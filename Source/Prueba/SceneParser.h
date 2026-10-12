@@ -16,10 +16,10 @@ struct FJSActor
 	GENERATED_BODY()
 
 	UPROPERTY()
-	FString actorID;
+	FString actor_id;
 
 	UPROPERTY()
-	FString actorClass;
+	FString actor_class;
 
 	UPROPERTY()
 	FVector postition;
@@ -37,13 +37,13 @@ struct FJSScene
 	GENERATED_BODY()
 
 	UPROPERTY()
-	FString sceneName;
+	FString scene_name;
 
 	UPROPERTY()
-	FString unrealVersion;
+	FString unreal_version;
 
 	UPROPERTY()
-	float timestamp;
+	FString timestamp;
 
 	UPROPERTY()
 	TArray<FJSActor> actors;
@@ -54,6 +54,6 @@ class PRUEBA_API SceneParser
 {
 public:
 	SceneParser();
-	static bool parseScene(const FString& fileName);
+	static bool parseScene(const FString& fileName, UWorld* World);
 	~SceneParser();
 };
