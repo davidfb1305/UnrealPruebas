@@ -1,0 +1,64 @@
+{
+  "scene_name": "Cube_and_Camera_Scene",
+  "unreal_version": "5.4",
+  "timestamp": "2024-01-15T10:30:00Z",
+  "actors": [
+    {
+      "actor_id": "cube",
+      "actor_class": "Actor Cube",
+      "transform": {
+        "position": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        "rotation": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        "scale": {
+          "x": 1.0,
+          "y": 1.0,
+          "z": 1.0
+        }
+      },
+      "properties": {
+        "Material": {
+          "Type": "Mesh",
+          "Color": [
+            0.5,
+            0.5,
+            0.5
+          ],
+          "Texture": null
+        }
+      }
+    },
+    {
+      "actor_id": "camera",
+      "actor_class": "Actor Camera",
+      "transform": {
+        "position": {
+          "x": 120.0,
+          "y": -450.5,
+          "z": 85.0
+        },
+        "rotation": {
+          "x": 0.0,
+          "y": -15.0,
+          "z": 90.0
+        },
+        "scale": {
+          "x": 1.0,
+          "y": 1.0,
+          "z": 1.0
+        }
+      },
+      "properties": {
+        "Focal_Length": 35.0,
+        "Target": "Cube"
+      }
+    }
+  ]
+}
