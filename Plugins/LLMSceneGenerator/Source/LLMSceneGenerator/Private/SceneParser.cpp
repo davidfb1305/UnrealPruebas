@@ -14,7 +14,7 @@
 #include "Camera/CameraComponent.h"
 
 
-#include "SceneParser.h"
+#include "../Public/SceneParser.h"
 
 
 

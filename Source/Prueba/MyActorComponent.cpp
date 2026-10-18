@@ -2,7 +2,7 @@
 
 
 #include "MyActorComponent.h"
-#include "SceneParser.h"
+
 // Sets default values for this component's properties
 UMyActorComponent::UMyActorComponent()
 {
@@ -18,7 +18,7 @@ UMyActorComponent::UMyActorComponent()
 void UMyActorComponent::BeginPlay()
 {
 	Super::BeginPlay();
-	SceneParser::parseScene(fileName,GetWorld());
+	//SceneParser::parseScene(fileName,GetWorld());
 	// ...
 	
 }

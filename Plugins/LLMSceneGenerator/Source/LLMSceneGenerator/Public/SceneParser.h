@@ -50,7 +50,7 @@ struct FJSScene
 };
 
 
-class PRUEBA_API SceneParser
+class SceneParser
 {
 public:
 	SceneParser();
