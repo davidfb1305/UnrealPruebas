@@ -44,7 +44,8 @@ public class LLMSceneGenerator : ModuleRules
 				"Slate",
 				"SlateCore",
                 "Json",
-                "JsonUtilities"
+                "JsonUtilities",
+                "PythonScriptPlugin" 
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);

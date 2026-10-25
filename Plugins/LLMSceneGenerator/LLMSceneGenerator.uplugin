@@ -20,5 +20,12 @@
 			"Type": "Editor",
 			"LoadingPhase": "Default"
 		}
+
+	],
+	"Plugins": [
+		{
+			"Name": "PythonScriptPlugin",
+			"Enabled": true
+		}
 	]
 }
