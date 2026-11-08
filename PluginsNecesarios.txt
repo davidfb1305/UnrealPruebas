@@ -1,0 +1,8 @@
+PublicDependencyModuleNames.AddRange(new string[] { 
+    "Core", 
+    "CoreUObject", 
+    "Engine", 
+    "Json", 
+    "JsonUtilities" 
+});
+//https://www.fab.com/listings/a49ebbbf-82f2-42e2-81c4-9c891c8bd698?lang=es-es posible plugin es de pago

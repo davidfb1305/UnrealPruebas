@@ -105,6 +105,7 @@ TSharedRef<SDockTab> FLLMSceneGeneratorModule::OnSpawnPluginTab(const FSpawnTabA
 						.OnClicked_Lambda([this]() -> FReply {
 						//REMOVE IN THE FUTURE 
 						GetSelectedDirectoriesContext();
+						///
 						UWorld* EditorWorld = GEditor ? GEditor->GetEditorWorldContext().World() : nullptr;
 						if (EditorWorld) { SceneParser::parseScene(SceneNameInput, EditorWorld); }
 						else { FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("WorldErrorMsg", "ERROR: INVALID EDITORWORLD")); }
@@ -493,7 +494,7 @@ FString FLLMSceneGeneratorModule::GetSelectedDirectoriesContext()
 							{
 								SystemContext += FString::Printf(TEXT("Descripción proporcionada: %s\n"), *Node->Description);
 							}
-
+							if (Node->Tag == EFolderTag::Scene) SystemContext += ParserUmapToJsonStream(Node->FolderPath);
 							ProcesedFiles.Add(Node->FolderPath);
 						}
 					}
@@ -513,6 +514,10 @@ FString FLLMSceneGeneratorModule::GetSelectedDirectoriesContext()
 	AppendLogToTerminal(TEXT("[SYSTEM PROMPT]: "+ SystemContext));
 	return SystemContext + TEXT("\nUSER PROMPT: ");
 }
+
+/// ---
+/// Save/Load
+/// ---
 
 void FLLMSceneGeneratorModule::SaveDirConfig()
 {
@@ -583,6 +588,86 @@ void FLLMSceneGeneratorModule::LoadDirConfig()
 		}
 	}
 }
+
+/// ---
+/// Parsers
+/// ---
+
+FString FLLMSceneGeneratorModule::ParserUmapToJsonStream(const FString& path)
+{
+	UE_LOG(LogTemp, Error, TEXT("Mellamo: %s"), *path);
+
+	if (path.IsEmpty())
+	{
+		return TEXT("{}");
+	}
+
+	UPackage* MapPackage = LoadPackage(nullptr, *path, LOAD_None);
+	if (!MapPackage)
+	{
+		UE_LOG(LogTemp, Error, TEXT("ERROR LOADING THE UMAP: %s"), *path);
+		return TEXT("{}");
+	}
+
+	UWorld* worldObj = UWorld::FindWorldInPackage(MapPackage);
+	if (!worldObj || !worldObj->PersistentLevel)
+	{
+		UE_LOG(LogTemp, Error, TEXT("ERROR: INVALID FORMAT."));
+		return TEXT("{}");
+	}
+
+	TSharedPtr<FJsonObject> RootJsonObject = MakeShareable(new FJsonObject());
+	TArray<TSharedPtr<FJsonValue>> ActoresArray;
+
+	for (AActor* Actor : worldObj->PersistentLevel->Actors)
+	{
+		
+		if (!Actor || Actor->IsTemplate()) continue;
+
+		FString actorName = Actor->GetActorLabel();
+
+		// Create json node
+		TSharedPtr<FJsonObject> ActorJsonObject = MakeShareable(new FJsonObject());
+		ActorJsonObject->SetStringField(TEXT("Name"), actorName);
+		ActorJsonObject->SetStringField(TEXT("Class"), Actor->GetClass()->GetName());
+
+		// Transform (Location, Rotation, Scale) ---
+		TSharedPtr<FJsonObject> TransformObject = MakeShareable(new FJsonObject());
+
+		// Pos
+		FVector Loc = Actor->GetActorLocation();
+		TArray<TSharedPtr<FJsonValue>> LocArray = { MakeShareable(new FJsonValueNumber(Loc.X)), MakeShareable(new FJsonValueNumber(Loc.Y)), MakeShareable(new FJsonValueNumber(Loc.Z)) };
+		TransformObject->SetArrayField(TEXT("Location"), LocArray);
+
+		// Rot 
+		FRotator Rot = Actor->GetActorRotation();
+		TArray<TSharedPtr<FJsonValue>> RotArray = { MakeShareable(new FJsonValueNumber(Rot.Roll)), MakeShareable(new FJsonValueNumber(Rot.Pitch)), MakeShareable(new FJsonValueNumber(Rot.Yaw)) };
+		TransformObject->SetArrayField(TEXT("Rotation"), RotArray);
+
+		// Scl
+		FVector Scale = Actor->GetActorScale3D();
+		TArray<TSharedPtr<FJsonValue>> ScaleArray = { MakeShareable(new FJsonValueNumber(Scale.X)), MakeShareable(new FJsonValueNumber(Scale.Y)), MakeShareable(new FJsonValueNumber(Scale.Z)) };
+		TransformObject->SetArrayField(TEXT("Scale"), ScaleArray);
+
+		ActorJsonObject->SetObjectField(TEXT("Transform"), TransformObject);
+
+		// Add actor
+		ActoresArray.Add(MakeShareable(new FJsonValueObject(ActorJsonObject)));
+	}
+
+	RootJsonObject->SetArrayField(TEXT("SceneActors"), ActoresArray);
+
+	FString jsonText;
+	TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&jsonText);
+
+	if (FJsonSerializer::Serialize(RootJsonObject.ToSharedRef(), Writer))
+	{
+		return jsonText;
+	}
+
+	return TEXT("{}");
+}
+
 
 
 

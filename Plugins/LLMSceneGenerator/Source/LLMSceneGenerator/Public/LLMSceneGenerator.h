@@ -104,4 +104,11 @@ private:
 	/// Load the dirConfig int the module startup
 	/// </summary>
 	void LoadDirConfig();
+
+	/// <summary>
+	/// Parser a umap from disc to a json format in a string
+	/// </summary>
+	/// <param name="path">umap path</param>
+	/// <returns></returns>
+	FString ParserUmapToJsonStream(const FString& path);
 };
