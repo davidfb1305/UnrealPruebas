@@ -275,7 +275,9 @@ TSharedRef<ITableRow> FLLMSceneGeneratorModule::OnGenerateDirectoryRow(TSharedPt
 {
 	// Enum to plain text
 	FString TagText = Item->Tag == EFolderTag::Code ? TEXT("Code") :
-		(Item->Tag == EFolderTag::Blueprint ? TEXT("Blueprint") : TEXT("Asset"));
+		(Item->Tag == EFolderTag::Blueprint ? TEXT("Blueprint") :
+			(Item->Tag == EFolderTag::Scene ? TEXT("Scene") : TEXT("Asset")));
+
 
 	return SNew(STableRow<TSharedPtr<FDirectoryNode>>, OwnerTable)
 		[
@@ -327,11 +329,13 @@ TSharedRef<ITableRow> FLLMSceneGeneratorModule::OnGenerateDirectoryRow(TSharedPt
 						.Text_Lambda([Item]() {
 						if (Item->Tag == EFolderTag::Code) return FText::FromString("Code");
 						if (Item->Tag == EFolderTag::Blueprint) return FText::FromString("Blueprint");
+						if (Item->Tag == EFolderTag::Scene) return FText::FromString("Scene");
 						return FText::FromString("Asset");
 							})
 						.OnClicked_Lambda([this, Item]() -> FReply {
 						if (Item->Tag == EFolderTag::Code) Item->Tag = EFolderTag::Blueprint;
 						else if (Item->Tag == EFolderTag::Blueprint) Item->Tag = EFolderTag::Asset;
+						else if (Item->Tag == EFolderTag::Asset) Item->Tag = EFolderTag::Scene;
 						else Item->Tag = EFolderTag::Code;
 						SaveDirConfig();
 						return FReply::Handled();
@@ -360,6 +364,7 @@ void FLLMSceneGeneratorModule::PopulateDirectoryTree()
 			RootNode->FolderName = RootName;
 			RootNode->FolderPath = RootPath;
 			RootNode->Tag = DefaultTag;
+			RootNode->bIsDirectory = true;
 
 			// Scan subdir
 			auto ProcessDir = [&](FString CurrentPath, TSharedPtr<FDirectoryNode> ParentNode, auto& ProcessDirRef) -> void
@@ -375,15 +380,54 @@ void FLLMSceneGeneratorModule::PopulateDirectoryTree()
 						TSharedPtr<FDirectoryNode> ChildNode = MakeShared<FDirectoryNode>();
 						ChildNode->FolderName = DirName;
 						ChildNode->FolderPath = FullPath;
+						RootNode->bIsDirectory = true;
 
-						if (DirName.Contains(TEXT("Blueprint")) || DirName.Contains(TEXT("BP_"))) ChildNode->Tag = EFolderTag::Blueprint;
-						else if (DirName.Contains(TEXT("Source")) || DirName.Contains(TEXT("Classes"))) ChildNode->Tag = EFolderTag::Code;
-						else ChildNode->Tag = DefaultTag;
+						if (DirName.Contains(TEXT("Blueprint")) || DirName.Contains(TEXT("BP_")))
+						{
+							ChildNode->Tag = EFolderTag::Blueprint;
+						}
+						else if (DirName.Contains(TEXT("Source")) || DirName.Contains(TEXT("Classes")))
+						{
+							ChildNode->Tag = EFolderTag::Code;
+						}
+						else if (DirName.Contains(TEXT("Maps")) || DirName.Contains(TEXT("Scenes")))
+						{
+							ChildNode->Tag = EFolderTag::Scene;
+						}
+						else
+						{
+							ChildNode->Tag = DefaultTag;
+						}
 
 						ParentNode->Children.Add(ChildNode);
 
 						ProcessDirRef(FullPath, ChildNode, ProcessDirRef);
 					}
+
+					TArray<FString> FoundFiles;
+					FileManager.FindFiles(FoundFiles, *(CurrentPath / TEXT("*.*")), true, false);
+
+					for (const FString& FileName : FoundFiles)
+					{	
+						//Filter archive type
+						if (FileName.EndsWith(TEXT(".uasset")) || FileName.EndsWith(TEXT(".umap")) ||
+							FileName.EndsWith(TEXT(".cpp")) || FileName.EndsWith(TEXT(".h")))
+						{
+							TSharedPtr<FDirectoryNode> FileNode = MakeShared<FDirectoryNode>();
+							FileNode->FolderName = FileName;
+							FileNode->FolderPath = CurrentPath / FileName;
+							FileNode->bIsDirectory = false;
+
+							// Asignar Tag por defecto basado en extensión si se desea
+							if (FileName.EndsWith(TEXT(".cpp")) || FileName.EndsWith(TEXT(".h"))) FileNode->Tag = EFolderTag::Code;
+							else if (FileName.EndsWith(TEXT(".uasset"))) FileNode->Tag = EFolderTag::Blueprint;
+							else if (FileName.EndsWith(TEXT(".umap"))) FileNode->Tag = EFolderTag::Scene;
+							else FileNode->Tag = DefaultTag;
+
+							ParentNode->Children.Add(FileNode);
+						}
+					}
+
 				};
 
 			ProcessDir(RootPath, RootNode, ProcessDir);
@@ -395,38 +439,67 @@ void FLLMSceneGeneratorModule::PopulateDirectoryTree()
 	RootDirectories.Add(BuildTree(FPaths::ProjectDir() / TEXT("Source"), TEXT("Project Source"), EFolderTag::Code));
 
 	// Unreal Native dirs
-	RootDirectories.Add(BuildTree(FPaths::EngineContentDir(), TEXT("Engine Content"), EFolderTag::Asset));
+	//RootDirectories.Add(BuildTree(FPaths::EngineContentDir(), TEXT("Engine Content"), EFolderTag::Asset));
 }
 
 FString FLLMSceneGeneratorModule::GetSelectedDirectoriesContext()
 {
 	FString SystemContext = TEXT("SYSTEM: La siguiente estructura de directorios está disponible para usar:\n");
 	IFileManager& FileManager = IFileManager::Get();
-
-	// Lambda recursiva para buscar nodos seleccionados
+	//use for avoiding duplicate files
+	TSet<FString> ProcesedFiles; 
+	// Look for all selected files/dirs
 	auto ProcessNode = [&](TSharedPtr<FDirectoryNode> Node, auto& ProcessNodeRef) -> void
 		{
 			if (Node->bIsSelected)
 			{
 				FString TagStr = Node->Tag == EFolderTag::Code ? TEXT("[Code]") :
-					(Node->Tag == EFolderTag::Blueprint ? TEXT("[Blueprint]") : TEXT("[Asset]"));
+					(Node->Tag == EFolderTag::Blueprint ? TEXT("[Blueprint]") :
+						(Node->Tag == EFolderTag::Scene ? TEXT("[Scene]") : TEXT("[Asset]")));
 
-				SystemContext += FString::Printf(TEXT("\nCarpeta %s: %s\n"), *TagStr, *Node->FolderPath);
-
-				if (!Node->Description.IsEmpty() && Node->Description!= "...")
+				if (Node->bIsSelected)
 				{
-					SystemContext += FString::Printf(TEXT("Descripción proporcionada: %s\n"), *Node->Description);
-				}
+					TagStr = Node->Tag == EFolderTag::Code ? TEXT("[Code]") :
+						(Node->Tag == EFolderTag::Blueprint ? TEXT("[Blueprint]") : TEXT("[Asset]"));
 
-				// Read the dir archives
-				TArray<FString> FoundFiles;
-				FileManager.FindFiles(FoundFiles, *(Node->FolderPath / TEXT("*.*")), true, false);
-				for (const FString& FileName : FoundFiles)
-				{
-					SystemContext += FString::Printf(TEXT("  - %s\n"), *FileName);
+					if (Node->bIsDirectory)
+					{
+						// Es una carpeta seleccionada completa
+						SystemContext += FString::Printf(TEXT("\nCarpeta %s: %s\n"), *TagStr, *Node->FolderPath);
+
+						if (!Node->Description.IsEmpty() && Node->Description != "...")
+						{
+							SystemContext += FString::Printf(TEXT("Descripción proporcionada: %s\n"), *Node->Description);
+						}
+
+						TArray<FString> FoundFiles;
+						FileManager.FindFiles(FoundFiles, *(Node->FolderPath / TEXT("*.*")), true, false);
+						for (const FString& FileName : FoundFiles)
+						{
+							FString FullFilePath = Node->FolderPath / FileName;
+							SystemContext += FString::Printf(TEXT("  - %s\n"), *FileName);
+
+
+							ProcesedFiles.Add(FullFilePath);
+						}
+					}
+					else
+					{
+						//Direct files
+						if (!ProcesedFiles.Contains(Node->FolderPath))
+						{
+							SystemContext += FString::Printf(TEXT("\nArchivo individual %s: %s\n"), *TagStr, *Node->FolderPath);
+							if (!Node->Description.IsEmpty() && Node->Description != "...")
+							{
+								SystemContext += FString::Printf(TEXT("Descripción proporcionada: %s\n"), *Node->Description);
+							}
+
+							ProcesedFiles.Add(Node->FolderPath);
+						}
+					}
 				}
 			}
-
+		
 			for (TSharedPtr<FDirectoryNode> Child : Node->Children)
 			{
 				ProcessNodeRef(Child, ProcessNodeRef);
@@ -450,6 +523,7 @@ void FLLMSceneGeneratorModule::SaveDirConfig()
 		{
 			TSharedPtr<FJsonObject> NodeObj = MakeShared<FJsonObject>();
 			NodeObj->SetBoolField(TEXT("bIsSelected"), Node->bIsSelected);
+			NodeObj->SetBoolField(TEXT("bIsDirectory"), Node->bIsDirectory);
 			NodeObj->SetStringField(TEXT("Description"), Node->Description);
 			NodeObj->SetNumberField(TEXT("Tag"), (int32)Node->Tag);
 
@@ -492,6 +566,7 @@ void FLLMSceneGeneratorModule::LoadDirConfig()
 				{
 					TSharedPtr<FJsonObject> NodeObj = RootObject->GetObjectField(Node->FolderPath);
 					Node->bIsSelected = NodeObj->GetBoolField(TEXT("bIsSelected"));
+					Node->bIsDirectory = NodeObj->GetBoolField(TEXT("bIsDirectory"));
 					Node->Description = NodeObj->GetStringField(TEXT("Description"));
 					Node->Tag = (EFolderTag)NodeObj->GetIntegerField(TEXT("Tag"));
 				}

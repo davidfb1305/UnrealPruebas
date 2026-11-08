@@ -1,5 +1,6 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
+#include "../Public/SceneParser.h"
 
 
 #include "Misc/FileHelper.h"
@@ -14,7 +15,6 @@
 #include "Camera/CameraComponent.h"
 
 
-#include "../Public/SceneParser.h"
 
 
 

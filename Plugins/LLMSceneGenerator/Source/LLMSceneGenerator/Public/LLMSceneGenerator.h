@@ -10,7 +10,8 @@ enum class EFolderTag
 {
 	Code,
 	Blueprint,
-	Asset
+	Asset,
+	Scene
 };
 
 struct FDirectoryNode
@@ -19,6 +20,7 @@ struct FDirectoryNode
 	FString FolderName;
 	FString Description;
 	bool bIsSelected = false;
+	bool bIsDirectory = true;
 	EFolderTag Tag = EFolderTag::Asset;
 	TArray<TSharedPtr<FDirectoryNode>> Children;
 };
