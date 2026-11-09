@@ -5,7 +5,16 @@ from mcp.server.mcpserver import MCPServer
 # 1. Inicializar el servidor MCP con MCPServer
 mcp = MCPServer("UnrealEngineHelper")
 
-
+# Asignación de recompensa por leer :D
+@mcp.resoucrce("El recurso esta aquí (path al recurso)")
+def get_mesh_for_charachter(personaje : str) ->str:
+    switch(personaje)
+        case Barbaro:
+            malla = carpeta recurso malla Barbaro
+        case mago:
+            
+            
+    return malla;
 # Creación de las herramientas y recursos que se leen para el Llamafile
 @mcp.resource("unreal://camera/transform")
 def get_camera_transform_resource() -> str:
