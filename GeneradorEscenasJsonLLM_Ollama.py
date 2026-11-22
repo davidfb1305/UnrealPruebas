@@ -159,7 +159,8 @@ async def specialist_handle_rpc(request: Request):
         modelo_activo = await detectar_modelo_abierto(SPECIALIST_BASE_URL, specialist_llm_client)
 
         print(f"\n-> [Agente Especialista ({modelo_activo})] Generando JSON en streaming:")
-        stream = await specialist_llm_client.chat.completions.create(
+        schema_dict = EscenaUnreal.model_json_schema()
+        escnea_json_LLM = await specialist_llm_client.chat.completions.create(
             model=modelo_activo,
             messages=[
                 {
@@ -173,16 +174,17 @@ async def specialist_handle_rpc(request: Request):
                 },
                 {"role": "user", "content": user_prompt}
             ],
-            temperature=0.2,
-            frequency_penalty=1.1,
-            stream=True
+            response_format={
+                "type": "json_schema",
+                "json_schema":{
+                    "name" : "escena_unreal",
+                    "schema": schema_dict,
+                    "strict": True
+                }
+            },
+            temperature=0.1,
         )
-        #Una vez guarada la respuesta del model en la variable stream (para poder segmentarlo)
-        fragmentos = []
-        async for chunk in stream: #Procesamos el texto de manera que después podamos leerlo y traducirlo más fácil
-            delta = chunk.choices[0].delta.content or ""
-            if delta:fragmentos.append(delta)
-        contenido = "".join(fragmentos)
+        contenido = escnea_json_LLM.choices[0].message.content or ""
         try:
             resultado_json = extraer_json_limpio(contenido)
         except json.JSONDecodeError:
@@ -558,7 +560,7 @@ async def generar_escena_con_mcp(
 async def main():
     print("Iniciando orquestador...")
 
-    if not USE_GUIDANCE:
+    if not USE_GUIDANCE: #Inicialización y detección de los modelos
         await iniciar_servidor_especialista()
         modelo_orq = await detectar_modelo_abierto(ORCHESTRATOR_BASE_URL, orchestrator_client)
         modelo_esp = await detectar_modelo_abierto(SPECIALIST_BASE_URL, specialist_llm_client)
