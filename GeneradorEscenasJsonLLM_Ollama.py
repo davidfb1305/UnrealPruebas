@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import sys
 import re
 import traceback
 import uuid
@@ -13,9 +14,11 @@ from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 from openai import AsyncOpenAI
 from pydantic import BaseModel, Field, ValidationError
+import subprocess
+import unreal
 
 # Cambia a True si deseas forzar la generación inicial con Guidance
-USE_GUIDANCE: bool = False
+USE_GUIDANCE: bool = True
 
 # ==============================================================================
 # CONFIGURACIÓN DE PUERTOS (Los modelos se autodetectan al arrancar)
@@ -356,12 +359,16 @@ else:
         remote_agents={"unreal_specialist_agent": SPECIALIST_AGENT_URL}
     )
 
-MCP_SERVER_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "server.py"))
-
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+MCP_SERVER_PATH = os.path.join(SCRIPT_DIR, "server.py")
+unreal_python_exe = os.path.join(
+    unreal.Paths.engine_dir(), 
+    "Binaries", "ThirdParty", "Python3", "Win64", "python.exe"
+)
 server_params = StdioServerParameters(
-    command="uv",
-    args=["run", "--with", "mcp[cli]", "mcp", "run", MCP_SERVER_PATH],
-    env=None,
+    command=unreal_python_exe,
+    args=[MCP_SERVER_PATH],
+    cwd=SCRIPT_DIR
 )
 
 # =======================================
@@ -423,6 +430,9 @@ async def reparar_Json(escenaJson: Any, err: Exception, prompt_user: str) -> Dic
 # =============================================================
 # 7. Generación de escena de Unreal en JSON con consulta MCP
 # =============================================================
+
+
+
 
 async def generar_escena_con_mcp(
     prompt_usuario: str,
@@ -557,6 +567,7 @@ async def generar_escena_con_mcp(
 # 8. Bucle principal de la conversación
 # ========================================
 
+
 async def main():
     print("Iniciando orquestador...")
 
@@ -567,57 +578,61 @@ async def main():
         print(f"-> Orquestador detectado ({modelo_orq}) en {ORCHESTRATOR_BASE_URL}")
         print(f"-> Especialista detectado ({modelo_esp}) en {SPECIALIST_BASE_URL} (vía {SPECIALIST_AGENT_URL})")
 
-    async with stdio_client(server_params) as (read, write):
-        async with ClientSession(read, write) as session:
-            await session.initialize()
+    with open("mcp_server_err.log", "w", encoding="utf-8") as err_file:
+        async with stdio_client(server_params, errlog=err_file) as (read, write):
+            async with ClientSession(read, write) as session:
+                await session.initialize()
 
-            tools_mcp = await session.list_tools()
-            tools_info = [
-                {
-                    "name": tool.name,
-                    "description": tool.description,
-                    "inputSchema": tool.input_schema,
-                }
-                for tool in tools_mcp.tools
-            ]
+                tools_mcp = await session.list_tools()
+                tools_info = [
+                    {
+                        "name": tool.name,
+                        "description": tool.description,
+                        "inputSchema": tool.input_schema,
+                    }
+                    for tool in tools_mcp.tools
+                ]
 
-            resources_mcp = await session.list_resources()
-            resources_info = [
-                {
-                    "uri": str(r.uri),
-                    "name": r.name,
-                    "description": r.description
-                }
-                for r in resources_mcp.resources
-            ]
+                resources_mcp = await session.list_resources()
+                resources_info = [
+                    {
+                        "uri": str(r.uri),
+                        "name": r.name,
+                        "description": r.description
+                    }
+                    for r in resources_mcp.resources
+                ]
 
-            print(f"-> Tools descubiertas: {[t['name'] for t in tools_info]}")
-            print(f"-> Resources descubiertos: {[r['uri'] for r in resources_info]}")
+                print(f"-> Tools descubiertas: {[t['name'] for t in tools_info]}")
+                print(f"-> Resources descubiertos: {[r['uri'] for r in resources_info]}")
+                pregunta = "NONE"
+                while True:
+                    while pregunta == "NONE":
+                        pass
 
-            while True:
-                pregunta = input("\n¿Qué escena o acción quieres realizar? ")
-                if pregunta.lower() in ["salir", "exit", "quit"]:
-                    break
+                    if pregunta.lower() in ["salir", "exit", "quit"]:
+                        break
 
-                try:
-                    resources_context = await leer_recursos_mcp(session, resources_info)
+                    try:
+                        resources_context = await leer_recursos_mcp(session, resources_info)
 
-                    escena = await generar_escena_con_mcp(
-                        pregunta,
-                        session,
-                        tools_info,
-                        resources_context
-                    )
+                        escena = await generar_escena_con_mcp(
+                            pregunta,
+                            session,
+                            tools_info,
+                            resources_context
+                        )
 
-                    nombre_archivo = "resultado.json"
-                    with open(nombre_archivo, "w", encoding="utf-8") as f:
-                        f.write(escena.model_dump_json(indent=2))
+                        nombre_archivo = "resultado.json"
+                        with open(nombre_archivo, "w", encoding="utf-8") as f:
+                            f.write(escena.model_dump_json(indent=2))
 
-                    print(f"\nRespuesta final guardada con éxito en: {nombre_archivo}")
+                        print(f"\nRespuesta final guardada con éxito en: {nombre_archivo}")
 
-                except Exception as e:
-                    print(f"Error procesando la solicitud: {e}")
-                    traceback.print_exc()
+                    except Exception as e:
+                        print(f"Error procesando la solicitud: {e}")
+                        traceback.print_exc()
+                    pregunta = "NONE"
 
 
 if __name__ == "__main__":

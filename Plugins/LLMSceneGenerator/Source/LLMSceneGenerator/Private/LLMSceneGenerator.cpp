@@ -59,6 +59,7 @@ void FLLMSceneGeneratorModule::ShutdownModule()
 	FLLMSceneGeneratorStyle::Shutdown();
 	FLLMSceneGeneratorCommands::Unregister();
 	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(LLMSceneGeneratorTabName);
+	IPythonScriptPlugin::Get()->OnPythonShutdown();
 }
 
 void FLLMSceneGeneratorModule::PluginButtonClicked()
@@ -103,9 +104,6 @@ TSharedRef<SDockTab> FLLMSceneGeneratorModule::OnSpawnPluginTab(const FSpawnTabA
 					SNew(SButton)
 						.Text(LOCTEXT("ExecuteParseButton", "Parse the scene to unreal"))
 						.OnClicked_Lambda([this]() -> FReply {
-						//REMOVE IN THE FUTURE 
-						GetSelectedDirectoriesContext();
-						///
 						UWorld* EditorWorld = GEditor ? GEditor->GetEditorWorldContext().World() : nullptr;
 						if (EditorWorld) { SceneParser::parseScene(SceneNameInput, EditorWorld); }
 						else { FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("WorldErrorMsg", "ERROR: INVALID EDITORWORLD")); }
@@ -147,20 +145,29 @@ TSharedRef<SDockTab> FLLMSceneGeneratorModule::OnSpawnPluginTab(const FSpawnTabA
 						if (PythonPlugin)
 						{
 
-							FString ScriptPath = FPaths::ProjectDir() + "prueba.py";
+							FString ScriptPath = FPaths::ProjectDir() + "GeneradorEscenasJsonLLM_Ollama.py";
 
 							FString FullPrompt = GetSelectedDirectoriesContext() + LLMPromptInput;
-							FString CleanedPrompt = FullPrompt.Replace(TEXT("'"), TEXT("\\'"));
 							FString CleanedFileName = SceneNameInput.Replace(TEXT("'"), TEXT("\\'"));
 
 							if (CleanedFileName.IsEmpty()) { CleanedFileName = TEXT("output_scene"); }
 
-							// Step 1: Load and execute the Python file environment
-							FString LoadCommand = FString::Printf(TEXT("exec(open('%s', encoding='utf-8').read())"), *ScriptPath);
-							PythonPlugin->ExecPythonCommand(*LoadCommand);
+							// Step 1: Ejecutar el archivo directamente usando el modo ExecuteFile
+							FPythonCommandEx PythonCommand;
+							PythonCommand.Command = ScriptPath;
+							PythonCommand.ExecutionMode = EPythonCommandExecutionMode::ExecuteFile;
+							PythonCommand.FileExecutionScope = EPythonFileExecutionScope::Public;
 
-							// Step 2: Invoke the specific target function passing both parameters
-							FString ExecutionCommand = FString::Printf(TEXT("generate_scene('%s', '%s')"), *CleanedPrompt, *CleanedFileName);
+							PythonPlugin->ExecPythonCommandEx(PythonCommand);
+							// Step 2: Codificamos FullPrompt SIN alterar (Base64 protege saltos de línea y comillas)
+							FString Base64Prompt = FBase64::Encode(FullPrompt);
+
+							// Decodificamos en Python y llamamos directamente a tu función
+							FString ExecutionCommand = FString::Printf(
+								TEXT("import base64; pregunta = base64.b64decode('%s').decode('utf-8')"),
+								*Base64Prompt
+							);
+							PythonPlugin->ExecPythonCommand(*ExecutionCommand);
 
 							AppendLogToTerminal(TEXT("[INFO] Processing prompt using Guidance and Ministral-3B..."));
 							bool bSuccess = PythonPlugin->ExecPythonCommand(*ExecutionCommand);
